@@ -1,6 +1,6 @@
 # Sudut Silat — Project Plan
 
-> Last updated: 2026-05-03 (rev 4 — resolved all remaining open items: QR connect, Pencak Point closing, correction UI)
+> Last updated: 2026-05-03 (rev 5 — scoring roles made symmetric: Juri 1 & Juri 2 can score either corner; dual-confirmation now matches corner + technique)
 > Status: Pre-development / Planning
 
 ---
@@ -67,9 +67,11 @@ The legal target zone is the **trunk (togok)**:
 Officially: 1 Referee (Wasit) + 5 Judges (Juri)
 
 **For this app (simplified/local version):**
-- **Juri Sudut Merah** — scores valid hits for the Red Corner athlete
-- **Juri Sudut Biru** — scores valid hits for the Blue Corner athlete
+- **Juri 1** — scores valid hits for **either** corner (Merah or Biru); corner is selected per entry, not fixed at role selection
+- **Juri 2** — scores valid hits for **either** corner (Merah or Biru); same mechanic as Juri 1
 - **Juri Pelanggaran** — records fouls and applies point deductions to either athlete
+
+> Both Juri 1 and Juri 2 are **symmetric**: they observe the same match and each independently decides which corner scored on each exchange. The corner is not fixed per device — it is chosen in the scoring flow for every individual entry.
 
 ---
 
@@ -115,18 +117,22 @@ All timing values are editable before a match starts without touching any code.
 
 One of the most critical rules in this app:
 
-> When **Juri Sudut Merah** OR **Juri Sudut Biru** registers a point, the **other corner judge** must confirm the **same point value** within the **confirmation window** (default: 2 seconds, configurable). If the second judge does not confirm within the window, the point is **invalidated/skipped**.
+> When **Juri 1** OR **Juri 2** registers a point (specifying both the corner and the technique), the **other judge** must confirm the **same corner AND the same technique** within the **confirmation window** (default: 2 seconds, configurable). If the second judge does not confirm — or confirms a different corner or technique — the point is **invalidated/skipped**.
 
 ### Logic Flow
 ```
-Judge A taps "Kick (2pt)" for their athlete
+Juri 1 selects corner = "Merah", technique = "Kick (2pt)"
+  → Server records a pending entry: { corner: "merah", technique: "kick", points: 2, initiator: "juri_1" }
   → Server starts a configurable countdown (default 2s)
-  → Judge B must tap the same score (2pt) within the window
-    → If YES → point is valid, scoreboard updates, event written to log
-    → If NO / timeout → point is cancelled, alert shown, cancellation written to log
+  → Juri 2 must select corner = "Merah" AND technique = "Kick" within the window
+    → If YES (corner + technique both match) → point is valid, scoreboard updates, event written to log
+    → If mismatch (wrong corner or wrong technique) → point is cancelled
+    → If NO confirmation within window / timeout → point is cancelled, alert shown, cancellation written to log
 ```
 
-This mirrors how real Juri must independently agree on a scored technique.
+This mirrors how real Juri must independently agree on both the technique and which athlete scored.
+
+> **Key change from previous design**: the corner is no longer fixed to a judge's role. Both judges observe both athletes and independently specify who they believe scored. The confirmation now requires matching on **corner + technique**, not just technique.
 
 > **Config key**: `confirmationWindowMs` in `config.json`
 
@@ -235,9 +241,9 @@ Each log entry is a single JSON object, one per line (newline-delimited JSON / N
 
 ```json
 {"seq":1,"ts":"2026-05-03T08:01:00.123Z","type":"match_start","round":1}
-{"seq":2,"ts":"2026-05-03T08:01:05.210Z","type":"score_pending","corner":"merah","technique":"kick","points":2,"initiator":"juri_merah"}
-{"seq":3,"ts":"2026-05-03T08:01:05.980Z","type":"score_confirmed","corner":"merah","technique":"kick","points":2,"confirmedBy":"juri_biru","elapsed_ms":770}
-{"seq":4,"ts":"2026-05-03T08:01:22.000Z","type":"score_pending","corner":"biru","technique":"hand","points":1,"initiator":"juri_biru"}
+{"seq":2,"ts":"2026-05-03T08:01:05.210Z","type":"score_pending","corner":"merah","technique":"kick","points":2,"initiator":"juri_1"}
+{"seq":3,"ts":"2026-05-03T08:01:05.980Z","type":"score_confirmed","corner":"merah","technique":"kick","points":2,"confirmedBy":"juri_2","elapsed_ms":770}
+{"seq":4,"ts":"2026-05-03T08:01:22.000Z","type":"score_pending","corner":"biru","technique":"hand","points":1,"initiator":"juri_2"}
 {"seq":5,"ts":"2026-05-03T08:01:24.100Z","type":"score_invalidated","corner":"biru","technique":"hand","points":1,"reason":"timeout"}
 {"seq":6,"ts":"2026-05-03T08:01:40.000Z","type":"foul","corner":"merah","level":"peringatan_1","deduction":-1,"by":"juri_pelanggaran"}
 {"seq":7,"ts":"2026-05-03T08:02:00.000Z","type":"complaint","reason":"Nilai tidak tercatat","votes":{"juri_merah":"merah","juri_biru":"merah","juri_pelanggaran":"tidak_sah"},"outcome":"merah","score_delta":{"merah":+1}}
@@ -291,7 +297,10 @@ All **user-facing text** (labels, buttons, dialogs, scoreboard, notifications) i
 |---|---|
 | Red Corner | Sudut Merah |
 | Blue Corner | Sudut Biru |
+| Judge 1 | Juri 1 |
+| Judge 2 | Juri 2 |
 | Foul Judge | Juri Pelanggaran |
+| Select corner | Pilih sudut |
 | Scoreboard | Papan Skor |
 | Round | Babak |
 | Match | Pertandingan |
@@ -327,21 +336,33 @@ All **user-facing text** (labels, buttons, dialogs, scoreboard, notifications) i
 ## 7. MVP Feature List
 
 ### 7.1 Role Assignment
-- On launch, each device selects a role: `Juri Merah`, `Juri Biru`, or `Juri Pelanggaran`
+- On launch, each device selects a role: `Juri 1`, `Juri 2`, or `Juri Pelanggaran`
 - A 4th view exists: **Scoreboard** (display-only, for projector/audience screen)
 - A 5th view: **Operator / Match Control** (starts/pauses round timer, raises complaints)
 
-### 7.2 Scoring Interface (Juri Merah & Juri Biru)
-- Large tap buttons for each technique:
-  - Hand Strike / Pukulan (1 pt)
-  - Evade + Hand / Elak + Pukulan (2 pts)
-  - Kick / Tendangan (2 pts)
-  - Evade + Kick / Elak + Tendangan (3 pts)
-  - Takedown / Jatuhan (3 pts)
-  - Evade + Takedown / Elak + Jatuhan (4 pts)
-- Visual + audio feedback when a point is pending confirmation
-- Visual feedback when point is confirmed or invalidated
-- **Pencak Point button** — available only at end of round (enabled by Operator), one tap per judge per round
+### 7.2 Scoring Interface (Juri 1 & Juri 2)
+
+Both judges use an identical, **3-step scoring flow** per entry:
+
+**Step 1 — Pilih sudut (which corner scored)**
+- Two large buttons: Merah | Biru
+- Must be selected before proceeding
+
+**Step 2 — Elak / tangkisan? (+1 bonus)**
+- Two buttons: Ya, ada elak (+1 bonus) | Tidak, langsung (no bonus)
+- Must be selected before proceeding
+
+**Step 3 — Pilih jenis serangan**
+- Three buttons unlocked after steps 1 and 2: Pukulan | Tendangan | Jatuhan
+- Displayed total points update in real time based on step 2 selection
+
+After step 3 is tapped:
+- Pending confirmation banner appears with countdown
+- The other judge must submit the same corner + same technique within the window
+- Visual + audio feedback on confirmation or invalidation
+- UI resets to step 1 for the next entry
+
+**Pencak Point button** — available only at end of round (enabled by Operator); judge selects Merah or Biru; one award per judge per round
 
 ### 7.3 Foul Interface (Juri Pelanggaran)
 - Select **which athlete** (Merah / Biru) received the violation
@@ -393,7 +414,7 @@ All **user-facing text** (labels, buttons, dialogs, scoreboard, notifications) i
 - [ ] i18n string file (`public/i18n/id.js`) for all UI text
 - [ ] Role selection screen (Bahasa Indonesia labels)
 - [ ] WebSocket connection & room management (Socket.io)
-- [ ] Score submission from Juri Merah / Biru
+- [ ] Score submission from Juri 1 / Juri 2 (corner selected per entry, not fixed per role)
 - [ ] Dual-confirmation window (configurable timer)
 - [ ] Point validation / invalidation broadcast
 - [ ] Append-only match log written to `logs/` on every event
@@ -442,6 +463,7 @@ All open questions from planning are resolved. Recorded here for traceability.
 | Judge connection method | **QR code** on Operator screen — judges scan to connect; no manual IP entry |
 | Pencak Point phase closing | **All 3 judges must submit** before phase closes — no force-close, no timeout |
 | Correction workflow | **In-app UI** (Phase 4) — Operator selects a past log entry, appends corrective record; log stays append-only |
+| Corner assignment per judge | **Not fixed at role selection** — both Juri 1 and Juri 2 select which corner scored on each individual entry; dual-confirmation requires matching corner + technique |
 
 > ✅ All planning decisions resolved. No remaining open items.
 
@@ -458,8 +480,8 @@ sudut-silat/
 │   └── match_YYYYMMDD_HHMM.ndjson
 ├── public/
 │   ├── index.html               # Role selection landing page
-│   ├── juri-merah.html          # Red corner judge interface
-│   ├── juri-biru.html           # Blue corner judge interface
+│   ├── juri-1.html              # Judge 1 interface (scores either corner)
+│   ├── juri-2.html              # Judge 2 interface (scores either corner)
 │   ├── juri-pelanggaran.html    # Foul judge interface
 │   ├── scoreboard.html          # Display-only scoreboard
 │   ├── operator.html            # Match control + complaint trigger + QR code display

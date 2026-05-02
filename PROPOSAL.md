@@ -20,13 +20,13 @@ Tujuan utama aplikasi ini adalah:
 
 ## Siapa Saja yang Terlibat?
 
-Dalam satu pertandingan, ada **4 peran** yang menggunakan aplikasi ini masing-masing dengan perangkat (HP atau tablet) sendiri:
+Dalam satu pertandingan, ada **4 peran** yang menggunakan aplikasi ini masing-masing dengan perangkat (HP atau tablet) sendiri. Peran **Juri 1** dan **Juri 2** kini simetris — keduanya dapat mencatat nilai untuk sudut Merah maupun Biru, tidak lagi terikat pada satu sudut:
 
-### 1. Juri Sudut Merah
-Bertugas mencatat nilai untuk atlet di sudut merah. Setiap kali atlet merah berhasil melakukan teknik yang sah, juri ini yang menekan tombol sesuai dengan jenis tekniknya.
+### 1. Juri 1
+Bertugas mencatat nilai teknik yang berhasil selama pertandingan berlangsung. Berbeda dengan sistem lama, juri ini **tidak terikat pada satu sudut saja** — setiap kali ada teknik yang sah, juri memilih dulu sudut mana yang mencetak nilai (Merah atau Biru), lalu memilih jenis tekniknya. Ini mencerminkan cara kerja juri sungguhan yang mengamati seluruh pertandingan, bukan hanya satu pihak.
 
-### 2. Juri Sudut Biru
-Sama dengan Juri Sudut Merah, namun bertugas mencatat nilai untuk atlet di sudut biru.
+### 2. Juri 2
+Sama dengan Juri 1 — dapat mencatat nilai untuk sudut Merah maupun Biru dalam setiap entri. Kedua juri ini mengamati pertandingan secara mandiri dan independen, kemudian sistem mencocokkan apakah keduanya sepakat atas teknik dan sudut yang sama.
 
 ### 3. Juri Pelanggaran
 Bertugas mencatat setiap pelanggaran yang dilakukan oleh salah satu atlet. Juri ini yang menentukan jenis pelanggaran dan tingkat hukumannya, sehingga nilai pengurangan langsung otomatis diterapkan ke papan skor.
@@ -58,14 +58,22 @@ Saat Juri Sudut Merah atau Juri Sudut Biru melihat teknik yang berhasil, ia mene
 | Jatuhan | Menjatuhkan lawan ke matras | 3 |
 | Elak + Jatuhan | Menghindar lalu menjatuhkan lawan | 4 |
 
+**Alur Pencatatan Nilai (3 Langkah)**
+
+Setiap kali juri melihat teknik yang berhasil, ia mengikuti 3 langkah sederhana:
+
+1. **Pilih sudut** — Merah atau Biru (atlet mana yang mencetak nilai)
+2. **Ada elak / tangkisan?** — Ya (+1 poin bonus) atau Tidak
+3. **Pilih jenis serangan** — Pukulan, Tendangan, atau Jatuhan
+
 **Konfirmasi Nilai (Mekanisme Kesepakatan Juri)**
 
-Setelah satu juri sudut menekan tombol teknik, aplikasi menunggu juri sudut yang *satunya* untuk menekan tombol teknik yang sama dalam batas waktu singkat (standar: 2 detik, dapat disesuaikan).
+Setelah satu juri selesai memilih ketiga langkah di atas, aplikasi menunggu juri *yang satunya* untuk memilih **sudut dan teknik yang sama** dalam batas waktu singkat (standar: 2 detik, dapat disesuaikan).
 
-- Jika **kedua juri setuju** → nilai sah, papan skor langsung bertambah
+- Jika **kedua juri sepakat** (sudut sama + teknik sama) → nilai sah, papan skor langsung bertambah
 - Jika **tidak ada kesepakatan** dalam batas waktu → nilai gugur, tidak dicatat
 
-Mekanisme ini mencerminkan cara kerja juri sungguhan: nilai hanya sah jika lebih dari satu juri mengakui teknik tersebut.
+Mekanisme ini mencerminkan cara kerja juri sungguhan: nilai hanya sah jika lebih dari satu juri secara mandiri mengakui teknik yang sama dari atlet yang sama.
 
 **Pencatatan Pelanggaran**
 
@@ -163,8 +171,8 @@ Sebelum pengembangan dimulai, ada beberapa hal yang kami mohon konfirmasinya dar
 
 | Fitur | Keterangan |
 |---|---|
-| Pencatatan nilai teknik | 6 jenis teknik dengan tombol besar, mudah ditekan |
-| Konfirmasi nilai oleh 2 juri | Nilai hanya sah jika kedua juri sudut setuju dalam batas waktu |
+| Pencatatan nilai teknik | 3 langkah: pilih sudut → ada elak? → pilih serangan; tombol besar, mudah ditekan |
+| Konfirmasi nilai oleh 2 juri | Nilai hanya sah jika kedua juri memilih sudut dan teknik yang sama dalam batas waktu |
 | Pencatatan pelanggaran | 5 tingkat pelanggaran sesuai aturan, pengurangan otomatis |
 | Nilai Pencak akhir babak | Diberikan secara mandiri oleh setiap juri di akhir tiap babak |
 | Papan skor real-time | Dapat ditampilkan di layar terpisah untuk penonton |
