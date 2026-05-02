@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sudut Silat — Prototype</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:           #13131a;
+    --surface:      #1e1e28;
+    --surface-high: #2a2a38;
+    --red:          #e63232;
+    --red-dim:      #3d1010;
+    --blue:         #2d6ef5;
+    --blue-dim:     #0d1e4a;
+    --amber:        #f5a61a;
+    --amber-dim:    #3d2a06;
+    --green:        #24c96b;
+    --green-dim:    #073320;
+    --on-dark:      #ffffff;
+    --on-mid:       #a0a0b0;
+    --on-sub:       #606070;
+    --radius:       16px;
+    --radius-sm:    10px;
+    --font:         -apple-system, 'Inter', sans-serif;
+  }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0a0a10;
+    font-family: var(--font);
+    color: var(--on-dark);
+    -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
+  }
+
+  /* ── Phone Shell ──────────────────────────────────────────── */
+  #app {
+    position: relative;
+    width: 390px; height: 844px;
+    margin: 0 auto;
+    background: var(--bg);
+    overflow: hidden;
+    border-radius: 40px;
+    box-shadow: 0 0 0 1px #333, 0 32px 80px rgba(0,0,0,.8);
+  }
+  @media (max-height: 900px) {
+    #app { transform: scale(0.92); transform-origin: top center; }
+  }
+  @media (max-height: 800px) {
+    #app { transform: scale(0.82); transform-origin: top center; }
+  }
+
+  /* status bar */
+  .status-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 24px 8px;
+    font-size: 13px; font-weight: 600;
+    color: var(--on-dark); background: transparent;
+    position: relative; z-index: 10;
+  }
+
+  /* ── Screens ──────────────────────────────────────────────── */
+  .screen {
+    position: absolute; inset: 0;
+    display: none; flex-direction: column;
+    background: var(--bg);
+    overflow-y: auto; overflow-x: hidden;
+  }
+  .screen.active { display: flex; }
+  .screen::-webkit-scrollbar { display: none; }
+
+  /* ── Top Bar ──────────────────────────────────────────────── */
+  .top-bar {
+    display: flex; align-items: center; justify-content: center;
+    padding: 14px 20px; gap: 10px;
+    font-size: 17px; font-weight: 700; letter-spacing: .5px;
+    flex-shrink: 0;
+  }
+  .top-bar.red   { background: var(--red); }
+  .top-bar.blue  { background: var(--blue); }
+  .top-bar.amber { background: var(--amber); color: #1a1000; }
+  .top-bar.dark  { background: var(--surface); border-bottom: 2px solid var(--green); }
+  .top-bar.neutral { background: var(--surface); }
+
+  /* ── Score Strip ──────────────────────────────────────────── */
+  .score-strip {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    height: 66px; flex-shrink: 0;
+  }
+  .score-cell {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2px;
+  }
+  .score-cell.red-cell  { background: var(--red-dim); }
+  .score-cell.blue-cell { background: var(--blue-dim); }
+  .score-cell.mid-cell  { background: var(--surface); }
+  .score-num { font-size: 28px; font-weight: 700; line-height: 1; }
+  .score-num.red  { color: var(--red); }
+  .score-num.blue { color: #6aadff; }
+  .score-label { font-size: 11px; color: var(--on-mid); }
+  .score-timer { font-size: 20px; font-weight: 700; }
+  .score-round { font-size: 11px; color: var(--on-mid); font-weight: 600; }
+
+  /* ── Section Label ────────────────────────────────────────── */
+  .sec-label {
+    padding: 10px 20px 6px;
+    font-size: 12px; font-weight: 600; color: var(--on-mid);
+    text-transform: uppercase; letter-spacing: .8px;
+    flex-shrink: 0;
+  }
+
+  /* ── Divider ──────────────────────────────────────────────── */
+  .divider { height: 1px; background: rgba(255,255,255,.08); flex-shrink: 0; }
+
+  /* ── Role Cards (Pilih Peran) ─────────────────────────────── */
+  .role-list { display: flex; flex-direction: column; gap: 0; padding: 8px 0; }
+  .role-card {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 20px;
+    cursor: pointer; transition: opacity .15s;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .role-card:active { opacity: .7; }
+  .role-icon {
+    width: 48px; height: 48px; border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .role-text { flex: 1; }
+  .role-name { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
+  .role-sub  { font-size: 12px; color: var(--on-mid); }
+  .role-arrow { font-size: 22px; color: var(--on-sub); }
+
+  /* ── 2-Step Scoring ───────────────────────────────────────── */
+  .step-area { padding: 12px 16px; flex-shrink: 0; }
+  .step-title {
+    font-size: 13px; font-weight: 600; color: var(--on-mid);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .step-badge {
+    width: 22px; height: 22px; border-radius: 11px;
+    background: var(--surface-high);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: var(--on-mid);
+  }
+  .step-badge.active { background: var(--amber); color: #1a1000; }
+
+  /* Elak toggle */
+  .elak-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin-bottom: 6px;
+  }
+  .elak-btn {
+    padding: 16px 10px; border-radius: var(--radius-sm);
+    border: 2px solid transparent;
+    background: var(--surface-high);
+    text-align: center; cursor: pointer;
+    transition: all .15s;
+  }
+  .elak-btn .elak-icon { font-size: 24px; margin-bottom: 4px; }
+  .elak-btn .elak-label { font-size: 14px; font-weight: 600; }
+  .elak-btn .elak-sub { font-size: 11px; color: var(--on-mid); margin-top: 2px; }
+  .elak-btn.selected { border-color: var(--amber); background: var(--amber-dim); }
+  .elak-btn:active { opacity: .7; }
+
+  /* Strike buttons */
+  .strike-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+  }
+  .strike-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 16px 8px; border-radius: var(--radius-sm);
+    border: 2px solid transparent;
+    cursor: pointer; transition: all .15s; gap: 6px;
+    opacity: .4; pointer-events: none;
+  }
+  .strike-btn.unlocked { opacity: 1; pointer-events: all; }
+  .strike-btn:active { opacity: .7; }
+  .strike-icon { font-size: 26px; }
+  .strike-name { font-size: 13px; font-weight: 600; }
+  .strike-pts  { font-size: 11px; color: var(--on-mid); }
+  .strike-total {
+    font-size: 18px; font-weight: 700;
+    padding: 4px 10px; border-radius: 8px;
+    background: rgba(255,255,255,.1);
+  }
+
+  /* Confirmation pending banner */
+  .pending-banner {
+    display: none; align-items: center; justify-content: center; gap: 10px;
+    padding: 14px 20px; background: #2a2000;
+    font-size: 13px; color: var(--amber);
+    flex-shrink: 0;
+  }
+  .pending-banner.show { display: flex; }
+  .pending-dot {
+    width: 10px; height: 10px; border-radius: 5px; background: var(--amber);
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* Confirmed/rejected flash */
+  .result-banner {
+    display: none; align-items: center; justify-content: center; gap: 10px;
+    padding: 14px 20px; font-size: 15px; font-weight: 600;
+    flex-shrink: 0;
+  }
+  .result-banner.show { display: flex; }
+  .result-banner.ok  { background: var(--green-dim); color: var(--green); }
+  .result-banner.bad { background: #2a0808; color: var(--red); }
+
+  /* ── Nilai Pencak Section ─────────────────────────────────── */
+  .pencak-section {
+    background: var(--surface); padding: 14px 16px; margin-top: 4px;
+    flex-shrink: 0;
+  }
+  .pencak-title { font-size: 12px; color: var(--on-sub); margin-bottom: 10px; text-align: center; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; }
+  .pencak-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pencak-btn {
+    padding: 12px; border-radius: var(--radius-sm); text-align: center;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+    opacity: .35; pointer-events: none;
+  }
+  .pencak-btn.active-pencak { opacity: 1; pointer-events: all; }
+  .pencak-btn:active { opacity: .6; }
+  .pencak-note { font-size: 11px; color: var(--on-sub); text-align: center; margin-top: 8px; }
+
+  /* ── Foul Screen ──────────────────────────────────────────── */
+  .athlete-row {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    padding: 10px 16px 14px; flex-shrink: 0;
+  }
+  .athlete-btn {
+    padding: 16px 10px; border-radius: var(--radius); text-align: center;
+    font-size: 15px; font-weight: 700; cursor: pointer; transition: all .15s;
+    border: 2px solid transparent;
+  }
+  .athlete-btn:active { opacity: .7; }
+  .athlete-btn.selected { border-color: white; box-shadow: 0 0 0 1px white; }
+
+  .level-list { display: flex; flex-direction: column; flex-shrink: 0; }
+  .level-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.06);
+    cursor: pointer; transition: opacity .15s;
+    opacity: .4; pointer-events: none;
+  }
+  .level-row.unlocked { opacity: 1; pointer-events: all; }
+  .level-row:active { opacity: .6; }
+  .ded-box {
+    width: 54px; height: 40px; border-radius: 8px; background: var(--surface-high);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; flex-shrink: 0;
+  }
+  .level-text { flex: 1; }
+  .level-name { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+  .level-sub  { font-size: 11px; color: var(--on-mid); }
+  .level-arrow { font-size: 20px; color: var(--on-sub); }
+
+  /* ── Papan Skor ───────────────────────────────────────────── */
+  .big-score {
+    display: grid; grid-template-columns: 1fr 90px 1fr;
+    height: 180px; flex-shrink: 0;
+  }
+  .big-side {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  }
+  .big-side.red  { background: var(--red-dim); }
+  .big-side.blue { background: var(--blue-dim); }
+  .big-corner-label { font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+  .big-number { font-size: 72px; font-weight: 700; line-height: 1; }
+  .big-fouls  { font-size: 11px; color: var(--on-sub); }
+  .big-center {
+    background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  }
+  .big-vs { font-size: 12px; font-weight: 700; color: var(--on-sub); }
+  .timer-box {
+    background: var(--surface); border-radius: 10px; padding: 6px 12px;
+    font-size: 22px; font-weight: 700; text-align: center;
+  }
+  .timer-sub { font-size: 10px; color: var(--on-sub); }
+
+  .round-row {
+    display: flex; align-items: center; padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.06); gap: 8px;
+  }
+  .round-label { flex: 1; font-size: 13px; color: var(--on-mid); }
+  .round-score { font-size: 16px; font-weight: 700; }
+  .round-score.red  { color: var(--red); }
+  .round-score.blue { color: #6aadff; }
+  .round-dash { font-size: 13px; color: var(--on-sub); margin: 0 4px; }
+  .win-tag {
+    font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+    background: var(--red-dim); color: var(--red);
+  }
+  .pending-tag { font-size: 12px; color: var(--on-sub); }
+
+  .event-row {
+    display: flex; align-items: center; padding: 10px 16px; gap: 12px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .event-time { font-size: 11px; color: var(--on-sub); width: 38px; flex-shrink: 0; }
+  .event-msg  { font-size: 12px; flex: 1; }
+
+  /* ── Operator ─────────────────────────────────────────────── */
+  .qr-box {
+    display: flex; align-items: center; gap: 20px;
+    padding: 16px 20px; background: var(--surface); flex-shrink: 0;
+  }
+  .qr-square {
+    width: 80px; height: 80px; border-radius: 8px; background: white;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .qr-inner { width: 60px; height: 60px; background: var(--bg); border-radius: 4px; }
+  .qr-info { display: flex; flex-direction: column; gap: 5px; }
+  .qr-title { font-size: 14px; font-weight: 600; }
+  .qr-ip    { font-size: 12px; color: var(--green); font-family: monospace; }
+  .qr-conn  { font-size: 12px; color: var(--green); }
+
+  .timer-control {
+    padding: 14px 16px; background: var(--bg); flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .timer-display { font-size: 18px; font-weight: 700; }
+  .timer-btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; width: 100%; }
+
+  .op-btn {
+    padding: 14px 16px; border-radius: var(--radius-sm); border: none;
+    font-size: 13px; font-weight: 600; cursor: pointer; text-align: center;
+    transition: opacity .15s; display: block; width: 100%;
+  }
+  .op-btn:active { opacity: .7; }
+  .op-btn.green { background: var(--green); color: #001a0a; }
+  .op-btn.dark  { background: var(--surface-high); color: var(--on-dark); }
+  .op-btn.stop  { background: #3d1010; color: var(--red); }
+  .op-btn.amber { background: var(--amber); color: #1a1000; }
+  .op-btn.red   { background: var(--red); color: white; }
+  .op-btn.sub   { background: var(--surface-high); color: var(--on-mid); }
+
+  .action-list { display: flex; flex-direction: column; flex-shrink: 0; }
+  .action-row {
+    padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,.06);
+    cursor: pointer; transition: opacity .15s;
+    font-size: 14px; font-weight: 600;
+  }
+  .action-row:active { opacity: .6; }
+  .action-row.amber-row { color: var(--amber); }
+  .action-row.red-row   { color: var(--red); }
+  .action-row.sub-row   { color: var(--on-mid); }
+
+  .protes-list { display: flex; flex-direction: column; flex-shrink: 0; }
+  .protes-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 20px; border-bottom: 1px solid rgba(255,255,255,.06);
+    background: var(--amber-dim); cursor: pointer; transition: opacity .15s;
+  }
+  .protes-row:active { opacity: .6; }
+  .protes-row .pr-text { flex: 1; font-size: 13px; color: var(--amber); }
+  .protes-row .pr-arrow { color: var(--on-sub); }
+  .protes-plain {
+    padding: 13px 20px; border-bottom: 1px solid rgba(255,255,255,.06);
+    font-size: 13px; color: var(--on-mid); cursor: pointer;
+    background: var(--surface-high); transition: opacity .15s;
+  }
+  .protes-plain:active { opacity: .6; }
+
+  /* ── Protes Dialog ────────────────────────────────────────── */
+  .modal-overlay {
+    display: none; position: absolute; inset: 0;
+    background: rgba(0,0,0,.75); z-index: 100;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-card {
+    background: var(--surface-high); border-radius: 20px;
+    padding: 24px 20px; width: 100%; max-width: 350px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .modal-title { font-size: 16px; font-weight: 700; color: var(--amber); text-align: center; }
+  .modal-reason {
+    background: var(--amber-dim); border-radius: 10px;
+    padding: 10px 14px; font-size: 13px; color: var(--amber); text-align: center;
+  }
+  .modal-prompt { font-size: 13px; color: var(--on-mid); text-align: center; }
+  .modal-btns { display: flex; flex-direction: column; gap: 10px; }
+  .vote-btn {
+    padding: 16px; border-radius: 14px; border: none;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: opacity .15s; text-align: center;
+  }
+  .vote-btn:active { opacity: .7; }
+  .vote-btn.merah { background: var(--red); color: white; }
+  .vote-btn.biru  { background: var(--blue); color: white; }
+  .vote-btn.invalid { background: var(--surface); color: var(--on-mid); border: 1.5px solid rgba(255,255,255,.15); }
+  .modal-countdown { font-size: 12px; color: var(--on-sub); text-align: center; }
+
+  /* ── Protes Result overlay ────────────────────────────────── */
+  .result-overlay {
+    display: none; position: absolute; inset: 0;
+    z-index: 200; align-items: center; justify-content: center;
+    padding: 20px; background: rgba(0,0,0,.8);
+  }
+  .result-overlay.show { display: flex; }
+  .result-card {
+    background: var(--surface-high); border-radius: 20px;
+    padding: 32px 24px; width: 100%; max-width: 340px;
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    text-align: center;
+  }
+  .result-icon { font-size: 48px; }
+  .result-title { font-size: 20px; font-weight: 700; }
+  .result-sub { font-size: 13px; color: var(--on-mid); }
+  .result-close {
+    margin-top: 8px; padding: 12px 32px; border-radius: 12px;
+    background: var(--surface); color: var(--on-mid);
+    font-size: 14px; font-weight: 600; cursor: pointer; border: none;
+  }
+
+  /* ── Bottom hint ──────────────────────────────────────────── */
+  .bottom-hint {
+    margin-top: auto; padding: 14px 20px;
+    background: var(--surface); text-align: center;
+    font-size: 12px; color: var(--on-sub); flex-shrink: 0;
+  }
+
+  /* ── Nav hint bar (prototype nav) ────────────────────────── */
+  #nav-bar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 390px; background: rgba(10,10,16,.95);
+    display: flex; gap: 0; border-top: 1px solid rgba(255,255,255,.1);
+    z-index: 999;
+  }
+  .nav-item {
+    flex: 1; padding: 8px 2px; text-align: center;
+    font-size: 9px; color: var(--on-sub); cursor: pointer;
+    transition: color .15s;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .nav-item:active, .nav-item.active { color: var(--amber); }
+  .nav-item .nav-icon { font-size: 16px; }
+
+  /* ── Utility ──────────────────────────────────────────────── */
+  .mt8  { margin-top: 8px; }
+  .mt4  { margin-top: 4px; }
+  .spacer { flex: 1; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <span id="clock">09:41</span>
+    <span>●●● 100%</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SCREEN: PILIH PERAN
+  ══════════════════════════════════════════════════════════ -->
+  <div class="screen active" id="screen-pilih">
+    <div class="top-bar neutral" style="flex-direction:column;gap:4px;padding:16px 20px;">
+      <span style="font-size:22px;font-weight:800;letter-spacing:1px;">SUDUT SILAT</span>
+      <span style="font-size:12px;font-weight:400;color:var(--on-mid);">Sistem Penilaian Pencak Silat — Tanding</span>
+    </div>
+    <div class="sec-label">Pilih peran Anda</div>
+    <div class="role-list">
+      <div class="role-card" onclick="goTo('screen-merah')">
+        <div class="role-icon" style="background:var(--red);">🔴</div>
+        <div class="role-text">
+          <div class="role-name">Juri Sudut Merah</div>
+          <div class="role-sub">Mencatat nilai untuk atlet merah</div>
+        </div>
+        <div class="role-arrow">›</div>
+      </div>
+      <div class="role-card" onclick="goTo('screen-biru')">
+        <div class="role-icon" style="background:var(--blue);">🔵</div>
+        <div class="role-text">
+          <div class="role-name">Juri Sudut Biru</div>
+          <div class="role-sub">Mencatat nilai untuk atlet biru</div>
+        </div>
+        <div class="role-arrow">›</div>
+      </div>
+      <div class="role-card" onclick="goTo('screen-pelanggaran')">
+        <div class="role-icon" style="background:var(--amber);">⚖️</div>
+        <div class="role-text">
+          <div class="role-name">Juri Pelanggaran</div>
+          <div class="role-sub">Mencatat pelanggaran & hukuman</div>
+        </div>
+        <div class="role-arrow">›</div>
+      </div>
+      <div class="role-card" onclick="goTo('screen-operator')">
+        <div class="role-icon" style="background:var(--green);">🎛️</div>
+        <div class="role-text">
+          <div class="role-name">Operator</div>
+          <div class="role-sub">Kendali pertandingan & protes</div>
+        </div>
+        <div class="role-arrow">›</div>
+      </div>
+      <div class="role-card" onclick="goTo('screen-skor')">
+        <div class="role-icon" style="background:var(--surface-high);">📋</div>
+        <div class="role-text">
+          <div class="role-name">Papan Skor</div>
+          <div class="role-sub">Tampilan skor untuk penonton</div>
+        </div>
+        <div class="role-arrow">›</div>
+      </div>
+    </div>
+    <div class="bottom-hint">📷 Scan QR dari Operator untuk bergabung</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SCREEN: JURI SUDUT MERAH
+  ══════════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-merah">
+    <div class="top-bar red">🔴 JURI SUDUT MERAH</div>
+
+    <div class="score-strip">
+      <div class="score-cell red-cell">
+        <span class="score-num red" id="merah-score-m">12</span>
+        <span class="score-label">Merah</span>
+      </div>
+      <div class="score-cell mid-cell">
+        <span class="score-round">BABAK 1</span>
+        <span class="score-timer" id="merah-timer-m">01:24</span>
+      </div>
+      <div class="score-cell blue-cell">
+        <span class="score-num blue" id="biru-score-m">9</span>
+        <span class="score-label">Biru</span>
+      </div>
+    </div>
+
+    <!-- STEP 1: Elak? -->
+    <div class="step-area">
+      <div class="step-title">
+        <span class="step-badge active" id="badge1-m">1</span>
+        Apakah ada elak / tangkisan dulu?
+      </div>
+      <div class="elak-row">
+        <div class="elak-btn" id="elak-ya-m" onclick="selectElak('m', true)">
+          <div class="elak-icon">🛡️</div>
+          <div class="elak-label">Ya, ada elak</div>
+          <div class="elak-sub">+1 bonus poin</div>
+        </div>
+        <div class="elak-btn" id="elak-tidak-m" onclick="selectElak('m', false)">
+          <div class="elak-icon">⚡</div>
+          <div class="elak-label">Tidak, langsung</div>
+          <div class="elak-sub">tanpa bonus</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- STEP 2: Jenis serangan -->
+    <div class="step-area">
+      <div class="step-title">
+        <span class="step-badge" id="badge2-m">2</span>
+        Pilih jenis serangan yang berhasil
+      </div>
+      <div class="strike-grid" id="strike-grid-m">
+        <div class="strike-btn" id="strike-pukulan-m" onclick="submitScore('m','pukulan')"
+             style="background:var(--red-dim); border-color:var(--red);">
+          <span class="strike-icon">👊</span>
+          <span class="strike-name">Pukulan</span>
+          <span class="strike-pts">1 poin</span>
+          <span class="strike-total" id="total-pukulan-m">+1</span>
+        </div>
+        <div class="strike-btn" id="strike-tendangan-m" onclick="submitScore('m','tendangan')"
+             style="background:var(--red-dim); border-color:var(--red);">
+          <span class="strike-icon">🦵</span>
+          <span class="strike-name">Tendangan</span>
+          <span class="strike-pts">2 poin</span>
+          <span class="strike-total" id="total-tendangan-m">+2</span>
+        </div>
+        <div class="strike-btn" id="strike-jatuhan-m" onclick="submitScore('m','jatuhan')"
+             style="background:var(--red-dim); border-color:var(--red);">
+          <span class="strike-icon">🤸</span>
+          <span class="strike-name">Jatuhan</span>
+          <span class="strike-pts">3 poin</span>
+          <span class="strike-total" id="total-jatuhan-m">+3</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending / Result banners -->
+    <div class="pending-banner" id="pending-m">
+      <div class="pending-dot"></div>
+      <span>Menunggu konfirmasi juri lain… <span id="countdown-m">2.0</span> dtk</span>
+    </div>
+    <div class="result-banner" id="result-m">
+      <span id="result-text-m"></span>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Nilai Pencak -->
+    <div class="pencak-section">
+      <div class="pencak-title">Nilai Pencak — akhir babak</div>
+      <div class="pencak-row">
+        <div class="pencak-btn" id="pencak-merah-m"
+             style="background:var(--red-dim); color:var(--red);"
+             onclick="awardPencak('m','merah')">🔴 Merah +1</div>
+        <div class="pencak-btn" id="pencak-biru-m"
+             style="background:var(--blue-dim); color:#6aadff;"
+             onclick="awardPencak('m','biru')">🔵 Biru +1</div>
+      </div>
+      <div class="pencak-note" id="pencak-note-m">Tidak aktif selama babak berlangsung</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SCREEN: JURI SUDUT BIRU
+  ══════════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-biru">
+    <div class="top-bar blue">🔵 JURI SUDUT BIRU</div>
+
+    <div class="score-strip">
+      <div class="score-cell red-cell">
+        <span class="score-num red" id="merah-score-b">12</span>
+        <span class="score-label">Merah</span>
+      </div>
+      <div class="score-cell mid-cell">
+        <span class="score-round">BABAK 1</span>
+        <span class="score-timer">01:24</span>
+      </div>
+      <div class="score-cell blue-cell">
+        <span class="score-num blue" id="biru-score-b">9</span>
+        <span class="score-label">Biru</span>
+      </div>
+    </div>
+
+    <div class="step-area">
+      <div class="step-title">
+        <span class="step-badge active" id="badge1-b">1</span>
+        Apakah ada elak / tangkisan dulu?
+      </div>
+      <div class="elak-row">
+        <div class="elak-btn" id="elak-ya-b" onclick="selectElak('b', true)">
+          <div class="elak-icon">🛡️</div>
+          <div class="elak-label">Ya, ada elak</div>
+          <div class="elak-sub">+1 bonus poin</div>
+        </div>
+        <div class="elak-btn" id="elak-tidak-b" onclick="selectElak('b', false)">
+          <div class="elak-icon">⚡</div>
+          <div class="elak-label">Tidak, langsung</div>
+          <div class="elak-sub">tanpa bonus</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="step-area">
+      <div class="step-title">
+        <span class="step-badge" id="badge2-b">2</span>
+        Pilih jenis serangan yang berhasil
+      </div>
+      <div class="strike-grid" id="strike-grid-b">
+        <div class="strike-btn" id="strike-pukulan-b" onclick="submitScore('b','pukulan')"
+             style="background:var(--blue-dim); border-color:var(--blue);">
+          <span class="strike-icon">👊</span>
+          <span class="strike-name">Pukulan</span>
+          <span class="strike-pts">1 poin</span>
+          <span class="strike-total" id="total-pukulan-b">+1</span>
+        </div>
+        <div class="strike-btn" id="strike-tendangan-b" onclick="submitScore('b','tendangan')"
+             style="background:var(--blue-dim); border-color:var(--blue);">
+          <span class="strike-icon">🦵</span>
+          <span class="strike-name">Tendangan</span>
+          <span class="strike-pts">2 poin</span>
+          <span class="strike-total" id="total-tendangan-b">+2</span>
+        </div>
+        <div class="strike-btn" id="strike-jatuhan-b" onclick="submitScore('b','jatuhan')"
+             style="background:var(--blue-dim); border-color:var(--blue);">
+          <span class="strike-icon">🤸</span>
+          <span class="strike-name">Jatuhan</span>
+          <span class="strike-pts">3 poin</span>
+          <span class="strike-total" id="total-jatuhan-b">+3</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pending-banner" id="pending-b">
+      <div class="pending-dot"></div>
+      <span>Menunggu konfirmasi juri lain… <span id="countdown-b">2.0</span> dtk</span>
+    </div>
+    <div class="result-banner" id="result-b">
+      <span id="result-text-b"></span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="pencak-section">
+      <div class="pencak-title">Nilai Pencak — akhir babak</div>
+      <div class="pencak-row">
+        <div class="pencak-btn" id="pencak-merah-b"
+             style="background:var(--red-dim); color:var(--red);"
+             onclick="awardPencak('b','merah')">🔴 Merah +1</div>
+        <div class="pencak-btn" id="pencak-biru-b"
+             style="background:var(--blue-dim); color:#6aadff;"
+             onclick="awardPencak('b','biru')">🔵 Biru +1</div>
+      </div>
+      <div class="pencak-note" id="pencak-note-b">Tidak aktif selama babak berlangsung</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SCREEN: JURI PELANGGARAN
+  ══════════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-pelanggaran">
+    <div class="top-bar amber">⚖️ JURI PELANGGARAN</div>
+
+    <div class="score-strip">
+      <div class="score-cell red-cell">
+        <span class="score-num red" id="merah-score-p">12</span>
+        <span class="score-label">Merah</span>
+      </div>
+      <div class="score-cell mid-cell">
+        <span class="score-round">BABAK 1</span>
+        <span class="score-timer">01:24</span>
+      </div>
+      <div class="score-cell blue-cell">
+        <span class="score-num blue" id="biru-score-p">9</span>
+        <span class="score-label">Biru</span>
+      </div>
+    </div>
+
+    <div class="sec-label">1. Pilih atlet yang melanggar</div>
+    <div class="athlete-row">
+      <div class="athlete-btn" id="athlete-merah"
+           style="background:var(--red-dim); color:var(--red);"
+           onclick="selectAthlete('merah')">🔴 Merah</div>
+      <div class="athlete-btn" id="athlete-biru"
+           style="background:var(--blue-dim); color:#6aadff;"
+           onclick="selectAthlete('biru')">🔵 Biru</div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="sec-label">2. Pilih tingkat pelanggaran</div>
+
+    <div class="level-list">
+      <div class="level-row" id="level-teguran" onclick="applyFoul('teguran',0,'var(--on-mid)')">
+        <div class="ded-box" style="color:var(--on-mid);">0 pt</div>
+        <div class="level-text">
+          <div class="level-name" style="color:var(--on-mid);">Teguran</div>
+          <div class="level-sub">Pelanggaran ringan pertama</div>
+        </div>
+        <div class="level-arrow">›</div>
+      </div>
+      <div class="level-row" id="level-p1" onclick="applyFoul('peringatan_1',-1,'var(--amber)')">
+        <div class="ded-box" style="color:var(--amber);">−1 pt</div>
+        <div class="level-text">
+          <div class="level-name" style="color:var(--amber);">Peringatan I</div>
+          <div class="level-sub">Pelanggaran ringan berulang</div>
+        </div>
+        <div class="level-arrow">›</div>
+      </div>
+      <div class="level-row" id="level-p2" onclick="applyFoul('peringatan_2',-2,'#f57a1a')">
+        <div class="ded-box" style="color:#f57a1a;">−2 pt</div>
+        <div class="level-text">
+          <div class="level-name" style="color:#f57a1a;">Peringatan II</div>
+          <div class="level-sub">Pelanggaran berlanjut</div>
+        </div>
+        <div class="level-arrow">›</div>
+      </div>
+      <div class="level-row" id="level-h1" onclick="applyFoul('hukuman_1',-5,'#f54a1a')">
+        <div class="ded-box" style="color:#f54a1a;">−5 pt</div>
+        <div class="level-text">
+          <div class="level-name" style="color:#f54a1a;">Hukuman I</div>
+          <div class="level-sub">Akumulasi pelanggaran berat</div>
+        </div>
+        <div class="level-arrow">›</div>
+      </div>
+      <div class="level-row" id="level-h2" onclick="applyFoul('hukuman_2',-10,'var(--red)')">
+        <div class="ded-box" style="color:var(--red);">−10 pt</div>
+        <div class="level-text">
+          <div class="level-name" style="color:var(--red);">Hukuman II / DQ</div>
+          <div class="level-sub">Pelanggaran sangat berat</div>
+        </div>
+        <div class="level-arrow">›</div>
+      </div>
+    </div>
+
+    <div class="result-banner mt8" id="result-p">
+      <span id="result-text-p"></span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SCREEN: PAPAN SKOR
+  ══════════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-skor">
+    <div class="top-bar neutral" style="font-size:13px;color:var(--on-mid);">
+      PAPAN SKOR  ·  BABAK 1
+    </div>
+
+    <div class="big-score">
+      <div class="big-side red">
+        <span style="font-size:20px;">🔴</span>
+        <span class="big-corner-label" style="color:var(--red);">MERAH</span>
+        <span class="big-number" style="color:var(--red);" id="big-merah">12</span>
+        <span class="big-fouls">⚠ 1 pelanggaran</span>
+      </div>
+      <div class="big-center">
+        <span class="big-vs">VS</span>
+        <div class="timer-box" id="big-timer">01:24</div>
+        <span class="timer-sub">tersisa</span>
+      </div>
+      <div class="big-side blue">
+        <span style="font-size:20px;">🔵</span>
+        <span class="big-corner-label" style="color:#6aadff;">BIRU</span>
+        <span class="big-number" style="color:#6aadff;" id="big-biru">9</span>
+        <span class="big-fouls">⚠ 2 pelanggaran</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="sec-label">Riwayat Babak</div>
+
+    <div class="round-row">
+      <span class="round-label">Babak 1</span>
+      <span class="round-score red">12</span>
+      <span class="round-dash">—</span>
+      <span class="round-score blue">9</span>
+      <span class="win-tag">Merah Menang</span>
+    </div>
+    <div class="round-row">
+      <span class="round-label">Babak 2</span>
+      <span class="pending-tag">Sedang berlangsung…</span>
+    </div>
+    <div class="round-row">
+      <span class="round-label">Babak 3</span>
+      <span class="pending-tag">Belum dimulai</span>
+    </div>
+
+    <div class="divider"></div>
+    <div class="sec-label">Kejadian Terakhir</div>
+
+    <div class="event-row">
+      <span class="event-time">08:31</span>
+      <span class="event-msg" style="color:var(--red);">✅ Merah: Tendangan (+2)</span>
+    </div>
+    <div class="event-row">
+      <span class="event-time">08:28</span>
+      <span class="event-msg" style="color:#6aadff;">✅ Biru: Elak + Pukulan (+2)</span>
+    </div>
+    <div class="event-row">
+      <span class="event-time">08:25</span>
+      <span class="event-msg" style="color:var(--amber);">⚠ Biru: Peringatan I (−1)</span>
+    </div>
+    <div class="event-row">
+      <span class="event-time">08:19</span>
+      <span class="event-msg" style="color:var(--on-sub);">❌ Nilai gugur — timeout</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SCREEN: OPERATOR
+  ══════════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen-operator">
+    <div class="top-bar dark">🎛️ OPERATOR</div>
+
+    <div class="qr-box">
+      <div class="qr-square"><div class="qr-inner"></div></div>
+      <div class="qr-info">
+        <div class="qr-title">Scan untuk Bergabung</div>
+        <div class="qr-ip">192.168.1.42 : 3000</div>
+        <div class="qr-conn">✓ 3 / 3 juri terhubung</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="timer-control">
+      <div class="timer-display">BABAK 1 — <span id="op-timer">01:24</span> tersisa</div>
+      <div class="timer-btns">
+        <button class="op-btn green" onclick="timerAction('mulai')">▶ Mulai</button>
+        <button class="op-btn dark"  onclick="timerAction('jeda')">⏸ Jeda</button>
+        <button class="op-btn stop"  onclick="timerAction('stop')">⏹ Stop</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="sec-label">Kendali Pertandingan</div>
+
+    <div class="action-list">
+      <div class="action-row amber-row" onclick="timerAction('babak')">⏭ Akhiri Babak → Buka Nilai Pencak</div>
+      <div class="action-row red-row"   onclick="timerAction('selesai')">🏁 Akhiri Pertandingan</div>
+      <div class="action-row sub-row"   onclick="timerAction('reset')">🔄 Reset / Pertandingan Baru</div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="sec-label">Protes / Keberatan</div>
+
+    <div class="protes-list">
+      <div class="protes-row" onclick="openProtes('Nilai tidak tercatat')">
+        <span>⚡</span><span class="pr-text">Nilai tidak tercatat</span><span class="pr-arrow">›</span>
+      </div>
+      <div class="protes-row" onclick="openProtes('Nilai salah dicatat')">
+        <span>⚡</span><span class="pr-text">Nilai salah dicatat</span><span class="pr-arrow">›</span>
+      </div>
+      <div class="protes-row" onclick="openProtes('Pelanggaran tidak dicatat')">
+        <span>⚡</span><span class="pr-text">Pelanggaran tidak dicatat</span><span class="pr-arrow">›</span>
+      </div>
+      <div class="protes-row" onclick="openProtes('Teknik tidak sah dinilai')">
+        <span>⚡</span><span class="pr-text">Teknik tidak sah dinilai</span><span class="pr-arrow">›</span>
+      </div>
+      <div class="protes-plain" onclick="openProtes('Alasan lain')">✏️ Tulis alasan lain…</div>
+      <div class="protes-plain" onclick="openNotice()">🔔 Kirim notifikasi saja</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       MODAL: DIALOG PROTES
+  ══════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-protes">
+    <div class="modal-card">
+      <div class="modal-title">⚡ PROTES DITERIMA</div>
+      <div class="modal-reason" id="modal-reason-text">Nilai tidak tercatat</div>
+      <div class="modal-prompt">Tentukan hasil keberatan ini:</div>
+      <div class="modal-btns">
+        <button class="vote-btn merah" onclick="voteProtes('merah')">🔴 Merah — Koreksi untuk Merah</button>
+        <button class="vote-btn biru"  onclick="voteProtes('biru')">🔵 Biru — Koreksi untuk Biru</button>
+        <button class="vote-btn invalid" onclick="voteProtes('tidak_sah')">❌ Tidak Sah — Tolak Protes</button>
+      </div>
+      <div class="modal-countdown" id="modal-countdown">Waktu tersisa: <span id="modal-timer">30</span> detik</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       OVERLAY: RESULT
+  ══════════════════════════════════════════════════════════ -->
+  <div class="result-overlay" id="result-overlay">
+    <div class="result-card">
+      <div class="result-icon" id="res-icon">✅</div>
+      <div class="result-title" id="res-title">Nilai Sah!</div>
+      <div class="result-sub" id="res-sub">Merah +2 poin (Tendangan)</div>
+      <button class="result-close" onclick="closeResult()">Tutup</button>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ── Bottom Nav (prototype navigation) ──────────────────── -->
+<div id="nav-bar">
+  <div class="nav-item active" id="nav-pilih" onclick="goTo('screen-pilih');setActiveNav(this)">
+    <span class="nav-icon">🏠</span>Pilih Peran
+  </div>
+  <div class="nav-item" id="nav-merah" onclick="goTo('screen-merah');setActiveNav(this)">
+    <span class="nav-icon">🔴</span>J. Merah
+  </div>
+  <div class="nav-item" id="nav-biru" onclick="goTo('screen-biru');setActiveNav(this)">
+    <span class="nav-icon">🔵</span>J. Biru
+  </div>
+  <div class="nav-item" id="nav-p" onclick="goTo('screen-pelanggaran');setActiveNav(this)">
+    <span class="nav-icon">⚖️</span>Pelanggaran
+  </div>
+  <div class="nav-item" id="nav-skor" onclick="goTo('screen-skor');setActiveNav(this)">
+    <span class="nav-icon">📋</span>Skor
+  </div>
+  <div class="nav-item" id="nav-op" onclick="goTo('screen-operator');setActiveNav(this)">
+    <span class="nav-icon">🎛️</span>Operator
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+const state = {
+  merah: 12, biru: 9,
+  elak: { m: null, b: null },
+  selectedAthlete: null,
+  pencakPhase: false,
+  matchRunning: false,
+  timerSeconds: 84,
+  protesTimer: null,
+};
+
+// ── Navigation ─────────────────────────────────────────────────
+function goTo(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function setActiveNav(el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── Clock ──────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.getHours().toString().padStart(2,'0') + ':' +
+    now.getMinutes().toString().padStart(2,'0');
+}
+updateClock();
+setInterval(updateClock, 10000);
+
+// ── Score sync ─────────────────────────────────────────────────
+function syncScores() {
+  const ids = [
+    'merah-score-m','merah-score-b','merah-score-p','big-merah',
+    'biru-score-m','biru-score-b','biru-score-p','big-biru'
+  ];
+  document.getElementById('merah-score-m').textContent = state.merah;
+  document.getElementById('merah-score-b').textContent = state.merah;
+  document.getElementById('merah-score-p').textContent = state.merah;
+  document.getElementById('big-merah').textContent     = state.merah;
+  document.getElementById('biru-score-m').textContent  = state.biru;
+  document.getElementById('biru-score-b').textContent  = state.biru;
+  document.getElementById('biru-score-p').textContent  = state.biru;
+  document.getElementById('big-biru').textContent      = state.biru;
+}
+
+// ── Timer ──────────────────────────────────────────────────────
+let timerInterval = null;
+function formatTime(s) {
+  return Math.floor(s/60).toString().padStart(2,'0') + ':' + (s%60).toString().padStart(2,'0');
+}
+function updateTimerDisplays() {
+  const t = formatTime(state.timerSeconds);
+  document.getElementById('merah-timer-m').textContent = t;
+  document.getElementById('op-timer').textContent = t;
+  document.getElementById('big-timer').textContent = t;
+}
+
+function timerAction(action) {
+  if (action === 'mulai') {
+    if (timerInterval) return;
+    state.matchRunning = true;
+    timerInterval = setInterval(() => {
+      if (state.timerSeconds > 0) {
+        state.timerSeconds--;
+        updateTimerDisplays();
+      } else {
+        clearInterval(timerInterval); timerInterval = null;
+        state.matchRunning = false;
+      }
+    }, 1000);
+  } else if (action === 'jeda') {
+    clearInterval(timerInterval); timerInterval = null;
+    state.matchRunning = false;
+  } else if (action === 'stop') {
+    clearInterval(timerInterval); timerInterval = null;
+    state.matchRunning = false; state.timerSeconds = 0; updateTimerDisplays();
+  } else if (action === 'babak') {
+    clearInterval(timerInterval); timerInterval = null;
+    state.matchRunning = false; state.pencakPhase = true;
+    unlockPencak();
+    showResultOverlay('🌟','Fase Nilai Pencak Dibuka','Setiap juri silakan berikan nilai pencak');
+  } else if (action === 'selesai') {
+    clearInterval(timerInterval); timerInterval = null;
+    state.matchRunning = false;
+    const winner = state.merah > state.biru ? 'MERAH' : state.biru > state.merah ? 'BIRU' : 'SERI';
+    const icon = winner === 'MERAH' ? '🔴' : winner === 'BIRU' ? '🔵' : '🤝';
+    showResultOverlay(icon, winner === 'SERI' ? 'Pertandingan Seri' : `Pemenang: ${winner}`,
+      `Skor akhir: Merah ${state.merah} — Biru ${state.biru}`);
+  } else if (action === 'reset') {
+    clearInterval(timerInterval); timerInterval = null;
+    state.merah = 0; state.biru = 0; state.timerSeconds = 120;
+    state.pencakPhase = false; state.elak = {m:null,b:null}; state.selectedAthlete = null;
+    state.matchRunning = false;
+    syncScores(); updateTimerDisplays(); lockPencak(); resetElak('m'); resetElak('b');
+  }
+}
+
+// ── 2-Step Scoring ─────────────────────────────────────────────
+const basePts = { pukulan: 1, tendangan: 2, jatuhan: 3 };
+
+function selectElak(side, hasElak) {
+  state.elak[side] = hasElak;
+
+  // Visual selection
+  document.getElementById(`elak-ya-${side}`).classList.toggle('selected', hasElak);
+  document.getElementById(`elak-tidak-${side}`).classList.toggle('selected', !hasElak);
+
+  // Unlock step 2
+  const grid = document.getElementById(`strike-grid-${side}`);
+  grid.querySelectorAll('.strike-btn').forEach(b => b.classList.add('unlocked'));
+
+  // Update badge
+  document.getElementById(`badge2-${side}`).classList.add('active');
+
+  // Update total displays
+  ['pukulan','tendangan','jatuhan'].forEach(type => {
+    const base = basePts[type];
+    const total = hasElak ? base + 1 : base;
+    document.getElementById(`total-${type}-${side}`).textContent = `+${total}`;
+  });
+}
+
+let pendingTimeout = null;
+
+function submitScore(side, type) {
+  if (state.elak[side] === null) return;
+
+  const elakBonus = state.elak[side] ? 1 : 0;
+  const pts = basePts[type] + elakBonus;
+  const corner = side === 'm' ? 'merah' : 'biru';
+  const elakLabel = state.elak[side] ? 'Elak + ' : '';
+  const typeLabel = type === 'pukulan' ? 'Pukulan' : type === 'tendangan' ? 'Tendangan' : 'Jatuhan';
+  const label = `${elakLabel}${typeLabel}`;
+
+  // Show pending
+  const pendingEl = document.getElementById(`pending-${side}`);
+  pendingEl.classList.add('show');
+
+  // Hide result
+  const resultEl = document.getElementById(`result-${side}`);
+  resultEl.classList.remove('show','ok','bad');
+
+  // Countdown display
+  let cd = 2.0;
+  const cdEl = document.getElementById(`countdown-${side}`);
+  cdEl.textContent = cd.toFixed(1);
+  const cdInterval = setInterval(() => {
+    cd = Math.max(0, cd - 0.1);
+    cdEl.textContent = cd.toFixed(1);
+  }, 100);
+
+  // Simulate confirmation after ~1.5s (auto-confirm for demo)
+  clearTimeout(pendingTimeout);
+  pendingTimeout = setTimeout(() => {
+    clearInterval(cdInterval);
+    pendingEl.classList.remove('show');
+
+    // 80% chance confirmed in demo
+    const confirmed = Math.random() > 0.2;
+    if (confirmed) {
+      if (corner === 'merah') state.merah += pts;
+      else state.biru += pts;
+      syncScores();
+
+      resultEl.className = 'result-banner show ok';
+      resultEl.querySelector('span').textContent = `✅ Nilai sah! ${corner === 'merah' ? 'Merah' : 'Biru'} +${pts} (${label})`;
+      showResultOverlay('✅', 'Nilai Sah!', `${corner === 'merah' ? 'Merah' : 'Biru'} +${pts} poin — ${label}`);
+    } else {
+      resultEl.className = 'result-banner show bad';
+      resultEl.querySelector('span').textContent = `❌ Nilai gugur — tidak dikonfirmasi`;
+      showResultOverlay('❌', 'Nilai Gugur', 'Juri lain tidak mengkonfirmasi dalam waktu 2 detik');
+    }
+
+    // Reset step 1 after 3s
+    setTimeout(() => {
+      resultEl.classList.remove('show','ok','bad');
+      resetElak(side);
+    }, 3000);
+
+  }, 1500);
+
+  // Reset elak state visually so user knows they tapped
+  document.getElementById(`strike-grid-${side}`).querySelectorAll('.strike-btn').forEach(b => b.classList.remove('unlocked'));
+}
+
+function resetElak(side) {
+  state.elak[side] = null;
+  document.getElementById(`elak-ya-${side}`).classList.remove('selected');
+  document.getElementById(`elak-tidak-${side}`).classList.remove('selected');
+  document.getElementById(`badge2-${side}`).classList.remove('active');
+  ['pukulan','tendangan','jatuhan'].forEach(type => {
+    document.getElementById(`total-${type}-${side}`).textContent =
+      `+${basePts[type]}`;
+  });
+}
+
+// ── Nilai Pencak ───────────────────────────────────────────────
+function unlockPencak() {
+  ['m','b'].forEach(side => {
+    ['merah','biru'].forEach(c => {
+      const btn = document.getElementById(`pencak-${c}-${side}`);
+      btn.classList.add('active-pencak');
+    });
+    const note = document.getElementById(`pencak-note-${side}`);
+    if (note) note.textContent = 'Pilih satu — atau tidak keduanya';
+  });
+}
+
+function lockPencak() {
+  ['m','b'].forEach(side => {
+    ['merah','biru'].forEach(c => {
+      document.getElementById(`pencak-${c}-${side}`).classList.remove('active-pencak');
+    });
+    const note = document.getElementById(`pencak-note-${side}`);
+    if (note) note.textContent = 'Tidak aktif selama babak berlangsung';
+  });
+}
+
+function awardPencak(side, corner) {
+  if (!state.pencakPhase) return;
+  if (corner === 'merah') state.merah++;
+  else state.biru++;
+  syncScores();
+  lockPencak();
+  state.pencakPhase = false;
+  showResultOverlay('🌟','Nilai Pencak Diberikan',`+1 untuk ${corner === 'merah' ? 'Merah' : 'Biru'}`);
+}
+
+// ── Foul ───────────────────────────────────────────────────────
+function selectAthlete(which) {
+  state.selectedAthlete = which;
+  document.getElementById('athlete-merah').classList.toggle('selected', which === 'merah');
+  document.getElementById('athlete-biru').classList.toggle('selected', which === 'biru');
+  document.querySelectorAll('.level-row').forEach(r => r.classList.add('unlocked'));
+}
+
+function applyFoul(level, deduction, color) {
+  if (!state.selectedAthlete) return;
+  if (deduction !== 0) {
+    if (state.selectedAthlete === 'merah') state.merah = Math.max(0, state.merah + deduction);
+    else state.biru = Math.max(0, state.biru + deduction);
+    syncScores();
+  }
+  const corner = state.selectedAthlete === 'merah' ? 'Merah' : 'Biru';
+  const dedLabel = deduction === 0 ? '(tanpa pengurangan)' : `(${deduction} poin)`;
+
+  const resultEl = document.getElementById('result-p');
+  resultEl.className = 'result-banner mt8 show ok';
+  resultEl.querySelector('span').textContent = `✅ ${corner}: ${level.replace('_',' ')} ${dedLabel}`;
+
+  showResultOverlay('⚖️',`Pelanggaran Dicatat`,`${corner} — ${level.replace('_',' ')} ${dedLabel}`);
+
+  // Reset
+  setTimeout(() => {
+    resultEl.classList.remove('show','ok');
+    state.selectedAthlete = null;
+    document.getElementById('athlete-merah').classList.remove('selected');
+    document.getElementById('athlete-biru').classList.remove('selected');
+    document.querySelectorAll('.level-row').forEach(r => r.classList.remove('unlocked'));
+  }, 2500);
+}
+
+// ── Protes ─────────────────────────────────────────────────────
+function openProtes(reason) {
+  document.getElementById('modal-reason-text').textContent = reason;
+  document.getElementById('modal-protes').classList.add('show');
+  let t = 30;
+  document.getElementById('modal-timer').textContent = t;
+  if (state.protesTimer) clearInterval(state.protesTimer);
+  state.protesTimer = setInterval(() => {
+    t--;
+    document.getElementById('modal-timer').textContent = t;
+    if (t <= 0) {
+      clearInterval(state.protesTimer);
+      closeProtes();
+      showResultOverlay('❌','Protes Ditolak','Waktu habis — tidak ada keputusan');
+    }
+  }, 1000);
+}
+
+function openNotice() {
+  showResultOverlay('🔔','Notifikasi Dikirim','Semua juri menerima pemberitahuan protes');
+}
+
+function voteProtes(vote) {
+  clearInterval(state.protesTimer);
+  closeProtes();
+  if (vote === 'merah') {
+    state.merah++;
+    syncScores();
+    showResultOverlay('🔴','Protes Disetujui','Koreksi nilai untuk Merah (+1)');
+  } else if (vote === 'biru') {
+    state.biru++;
+    syncScores();
+    showResultOverlay('🔵','Protes Disetujui','Koreksi nilai untuk Biru (+1)');
+  } else {
+    showResultOverlay('❌','Protes Ditolak','Nilai tetap tidak berubah');
+  }
+}
+
+function closeProtes() {
+  document.getElementById('modal-protes').classList.remove('show');
+}
+
+// ── Result overlay ─────────────────────────────────────────────
+function showResultOverlay(icon, title, sub) {
+  document.getElementById('res-icon').textContent = icon;
+  document.getElementById('res-title').textContent = title;
+  document.getElementById('res-sub').textContent = sub;
+  document.getElementById('result-overlay').classList.add('show');
+}
+
+function closeResult() {
+  document.getElementById('result-overlay').classList.remove('show');
+}
+
+// Auto-close result after 3s
+setInterval(() => {
+  const o = document.getElementById('result-overlay');
+  if (o.classList.contains('show')) {
+    // only auto-close if not a final result
+    if (!['Pemenang: MERAH','Pemenang: BIRU','Pertandingan Seri'].includes(
+        document.getElementById('res-title').textContent)) {
+      setTimeout(() => o.classList.remove('show'), 2800);
+    }
+  }
+}, 3000);
+</script>
+</body>
+</html>
